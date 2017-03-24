@@ -1,0 +1,135 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"strconv"
+	"time"
+)
+
+const SCALYR_BASE_ENDPOINT = "https://www.scalyr.com/"
+const SCALYR_ADDEVENTS_ENDPOINT = SCALYR_BASE_ENDPOINT + "addEvents"
+
+var SCALYR_KEY = os.Getenv("SCALYR_KEY")
+var APPLICATION_PROCESS_ID = UUID()
+var APPLICATION_HOSTNAME = HostName()
+
+type ScalyrEventAttributes struct {
+	Message          string `json:"message"`
+	AnotherAttribute string `json:"attribute2"`
+}
+
+type ScalyrEvent struct {
+	Thread string                `json:"thread"`
+	TS     string                `json:"ts"`
+	Type   int64                 `json:"type"`
+	Sev    int64                 `json:"sev"`
+	Attrs  ScalyrEventAttributes `json:"attrs"`
+}
+
+// TODO:  ^^^^ that is only accepting one attribute now, "message", obviously
+// it needs to change to accept multiple attributes that are defined by the
+// caller...
+
+type ScalyrThread struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type ScalyrSessionInfo struct {
+	ServerType string `json:"serverType"`
+	ServerId   string `json:"serverId"`
+}
+
+type ScalyrEvents struct {
+	Token       string            `json:"token"`
+	Session     string            `json:"session"`
+	SessionInfo ScalyrSessionInfo `json:"sessionInfo"`
+	Events      []ScalyrEvent     `json:"events"`
+	Threads     []ScalyrThread    `json:"threads"`
+}
+
+/*
+import (
+	scalyr "github.com/mickeyyawn/scalyr-go-agent"
+)
+*/
+
+func main() {
+
+	fmt.Println("scalyr key:", os.Getenv("SCALYR_KEY"))
+
+	si := &ScalyrSessionInfo{
+		ServerType: "server type...",
+		ServerId:   APPLICATION_HOSTNAME,
+	}
+
+	attr := &ScalyrEventAttributes{
+		Message:          "message with json  {id:1, stuff:here}",
+		AnotherAttribute: "a second attribute, what does it look like...",
+	}
+
+	fmt.Println(int32(time.Now().Unix()))
+
+	//
+
+	se := &ScalyrEvent{
+		Thread: "1",
+		TS:     strconv.FormatInt(time.Now().UnixNano(), 10),
+		Type:   0,
+		Sev:    2,
+		Attrs:  *attr,
+	}
+
+	t := &ScalyrThread{
+		ID:   "1",
+		Name: "this is my thread name...",
+	}
+
+	//s := make([]string, 3)
+	events := make([]ScalyrEvent, 1)
+	events[0] = *se
+
+	threads := make([]ScalyrThread, 1)
+	threads[0] = *t
+
+	ses := &ScalyrEvents{
+		Token:       SCALYR_KEY,
+		Session:     APPLICATION_PROCESS_ID,
+		SessionInfo: *si,
+		Events:      events,
+		Threads:     threads,
+	}
+
+	json, _ := json.Marshal(ses)
+	fmt.Println(string(json))
+
+	url := SCALYR_ADDEVENTS_ENDPOINT
+	fmt.Println("URL:>", url)
+
+	//var jsonStr = []byte(`{"title":"Buy cheese and bread for breakfast."}`)
+	//var jsonStr = []byte(`{"title":"Buy cheese and bread for breakfast."}`)
+	//req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(json))
+	//req.Header.Set("X-Custom-Header", "myvalue")
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	fmt.Println("response Status:", resp.Status)
+	fmt.Println("response Headers:", resp.Header)
+	body, _ := ioutil.ReadAll(resp.Body)
+	fmt.Println("response Body:", string(body))
+
+	Event(Warning, "Wow, this is my new scalyr message...")
+
+}
