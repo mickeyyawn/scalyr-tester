@@ -27,10 +27,6 @@ type scalyrEvent struct {
 	Attrs interface{} `json:"attrs"`
 }
 
-// TODO:  ^^^^ that is only accepting one attribute now, "message", obviously
-// it needs to change to accept multiple attributes that are defined by the
-// caller...
-
 type scalyrSessionInfo struct {
 	ServerType string `json:"serverType"`
 	ServerId   string `json:"serverId"`
@@ -76,8 +72,8 @@ func testSeverityLevel(sev Severity) {
 // The "sev" (severity) field should range from 0 to 6, and identifies the importance of this event, using the
 //  classic scale "finest, finer, fine, info, warning, error, fatal". This field is optional (defaults to 3 / info).
 
-func Event(sev Severity, message string, attributes string) {
-	Print(message)
+func Event(sev Severity, attributes interface{}) {
+	//Print(message)
 	Print(string(sev))
 
 	//fmt.Println(sev)
@@ -91,21 +87,51 @@ func Event(sev Severity, message string, attributes string) {
 		ServerId:   _APPLICATION_HOSTNAME,
 	}
 
-	b := []byte(`{"message":"","attroneasnumber":6,"attrtwoasstring":"my custom attribute..."}`)
+	/*
 
-	var attrs interface{}
-	err := json.Unmarshal(b, &attrs)
+		var attrs interface{}
+		err := json.Unmarshal([]byte("{}"), &attrs)
+		m := attrs.(map[string]interface{})
+		m["message"] = message
 
-	m := attrs.(map[string]interface{})
-	m["message"] = "attribute adding on fly !!"
-	m["completelynewattribute"] = "NEW ATTR"
-	m["this will be a number"] = 42
+	*/
+
+	//m["completelynewattribute"] = "NEW ATTR"
+	//m["this will be a number"] = 42
+
+	for k := range attributes.(map[string]interface{}) {
+		Print(k)
+	}
+
+	//usethisone := attributes.(map[string]interface{})
+	//usethisone["message"] = message
+
+	/*
+
+		b := []byte(`{"message":"","attroneasnumber":6,"attrtwoasstring":"my custom attribute..."}`)
+
+		var attrs interface{}
+		err := json.Unmarshal(b, &attrs)
+
+		m := attrs.(map[string]interface{})
+		m["message"] = "attribute adding on fly !!"
+		m["completelynewattribute"] = "NEW ATTR"
+		m["this will be a number"] = 42
+
+		se := &scalyrEvent{
+			TS:    strconv.FormatInt(time.Now().UnixNano(), 10),
+			Type:  0,
+			Sev:   int(sev),
+			Attrs: attrs,
+		}
+
+	*/
 
 	se := &scalyrEvent{
 		TS:    strconv.FormatInt(time.Now().UnixNano(), 10),
 		Type:  0,
 		Sev:   int(sev),
-		Attrs: attrs,
+		Attrs: attributes,
 	}
 
 	events := make([]scalyrEvent, 1)
